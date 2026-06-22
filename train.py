@@ -3,34 +3,28 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_checker import check_env
 import os
 
-# Create the environment
-env = PokemonBattleEnv()
-
-# Check that the environment follows gymnasium rules correctly
+# check with simulation so mgba doesn't need to be open
+check_env_instance = PokemonBattleEnv(use_live_memory=False)
 print("Checking environment...")
-check_env(env)
+check_env(check_env_instance)
 print("Environment check passed.")
 
-# Create the PPO agent
-# This is the AI that will learn to play Pokemon battles
+env = PokemonBattleEnv(use_live_memory=True)
+
 model = PPO(
-    "MlpPolicy",    # Multi-layer perceptron - standard neural network
+    "MlpPolicy",
     env,
-    verbose=1,      # Print training progress
-    tensorboard_log="./logs/"  # Save training data for visualization
+    verbose=1,
+    tensorboard_log="./logs/"
 )
 
-# Train the agent
-# 100,000 timesteps is a quick test run - real training uses 1,000,000+
 print("Starting training...")
 model.learn(total_timesteps=100_000)
 
-# Save the trained model
 os.makedirs("models", exist_ok=True)
 model.save("models/pokemon_battle_agent")
 print("Training complete. Model saved.")
 
-# Test the trained agent
 print("\nTesting trained agent...")
 obs, _ = env.reset()
 total_reward = 0
