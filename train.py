@@ -9,7 +9,12 @@ print("Checking environment...")
 check_env(check_env_instance)
 print("Environment check passed.")
 
-env = PokemonBattleEnv(use_live_memory=True)
+# change reward_version here to test different reward functions
+# v1 = original, v2 = speed bonus, v3 = type effectiveness
+# document what happens with each version in devlog/
+REWARD_VERSION = 1
+
+env = PokemonBattleEnv(use_live_memory=True, reward_version=REWARD_VERSION)
 
 model = PPO(
     "MlpPolicy",
@@ -18,12 +23,12 @@ model = PPO(
     tensorboard_log="./logs/"
 )
 
-print("Starting training...")
+print(f"Starting training with reward version {REWARD_VERSION}...")
 model.learn(total_timesteps=100_000)
 
 os.makedirs("models", exist_ok=True)
-model.save("models/pokemon_battle_agent")
-print("Training complete. Model saved.")
+model.save(f"models/pokemon_battle_agent_v{REWARD_VERSION}")
+print(f"Training complete. Model saved as pokemon_battle_agent_v{REWARD_VERSION}.")
 
 print("\nTesting trained agent...")
 obs, _ = env.reset()
