@@ -6,7 +6,7 @@ Teaching a reinforcement learning agent to play Pokemon Emerald using real game 
 
 ## What is this?
 
-A reinforcement learning project where an AI agent learns to play Pokemon Emerald battles by reading live game memory through mGBA and making decisions using a reward function I designed from scratch.
+A reinforcement learning project where an agent learns to play Pokemon Emerald battles by reading live game memory through mGBA and making decisions using a reward function I designed from scratch.
 
 The interesting part is not the Pokemon. It is the reward function design. Designing a reward function that produces smart, intentional behavior is the same core problem you face when programming autonomous robots to navigate, make decisions, and complete tasks in the real world. This project is practice for that.
 
@@ -22,9 +22,11 @@ Training uses PPO from stable-baselines3, which is the standard starting point f
 
 ## Files
 
-**environment.py** defines the Gym environment. This is where the reward function lives. Every design decision about what the agent should optimize for is in here.
+**environment.py** defines the Gym environment. This is where the reward function lives and where every design decision about what the agent should optimize for gets made. It also holds the type effectiveness chart pulled directly from the game data, which the agent uses starting in reward version 3.
 
-**train.py** creates the agent, runs training, saves the model, and tests it.
+**train.py** creates the agent, runs training, saves the model, and tests it. Change the REWARD_VERSION variable at the top to switch between reward functions without touching anything else.
+
+**bridge.lua** runs inside mGBA. It reads live battle state from memory every 30 frames, writes it to a JSON file, and translates the agent's action choices into actual button presses in the game.
 
 ---
 
@@ -32,32 +34,23 @@ Training uses PPO from stable-baselines3, which is the standard starting point f
 
 The reward function is the most important part of this project and the hardest part to get right.
 
-Current design:
-- Dealing damage: positive reward scaled by percentage of enemy HP removed
-- Taking damage: negative reward scaled by percentage of player HP lost
-- Winning the battle: +10
-- Losing the battle: -10
-- Using items instead of attacking: small penalty
-- Switching when not needed: small penalty
-- Battle going too long: penalty for dragging it out
+I built three versions. The first was a naive baseline that taught the agent to fight but gave it no concept of time. A win in 3 turns looked identical to a win in 49 turns. The second added a speed bonus and made the agent aggressive, but it became reckless, tanking hits it should have avoided just to end fights faster. The third added type effectiveness from the actual game data and is where the agent finally started making context-dependent decisions instead of just spamming the highest power move.
 
-Every version of the reward function that failed is documented in the devlog folder. Failed reward functions are as useful as successful ones because they show exactly what the agent optimizes for when you are not careful enough.
+Every version is documented in the devlog folder. The failed versions are as useful as the working ones because they show exactly what the agent optimizes for when you are not careful enough about what you are asking it to do.
 
 ---
 
 ## Robotics Connection
 
-The reason this connects to robotics is that reward function design is reward function design regardless of whether you are training an agent to play Pokemon or training a robot to navigate a warehouse.
+Reward function design is reward function design regardless of whether you are training an agent to play Pokemon or training a robot to navigate a warehouse. In both cases you are answering the same question: what does good behavior look like, and how do you express that mathematically so a learning algorithm can figure it out on its own?
 
-In both cases you are answering the same question: what does good behavior look like, and how do you express that mathematically so a learning algorithm can figure it out on its own?
-
-This project is my way of getting real experience with that problem before I get to work on physical systems.
+See ROBOTICS.md for the full writeup on how this connects to autonomous systems research.
 
 ---
 
 ## Status
 
-Environment and training pipeline are working. Currently connecting to live mGBA memory so the agent trains on real game state instead of a simulated environment. Robotics writeup in progress.
+Environment, training pipeline, and mGBA memory bridge are working. Three reward function versions complete and documented. Demo video coming.
 
 ---
 
