@@ -3,6 +3,7 @@ import numpy as np
 import json
 import os
 from gymnasium import spaces
+import time
 
 # path to the json file that rl_bridge.lua writes to
 BRIDGE_FILE = "C:/Users/rmukh/Desktop/pokemon-accessibility-dev/battle_state.json"
@@ -49,7 +50,7 @@ class PokemonBattleEnv(gym.Env):
         self.reward_version = reward_version
 
         # 4 moves + switch + item
-        self.action_space = spaces.Discrete(6)
+        self.action_space = spaces.Discrete(4)
 
         # what the agent sees each turn:
         # [player_hp, player_max_hp, enemy_hp, enemy_max_hp,
@@ -57,7 +58,7 @@ class PokemonBattleEnv(gym.Env):
         #  move3_power, move4_power, turns_remaining]
         self.observation_space = spaces.Box(
             low=0,
-            high=255,
+            high=1000,
             shape=(11,),
             dtype=np.float32
         )
@@ -77,7 +78,7 @@ class PokemonBattleEnv(gym.Env):
         self.total_episodes = 0
 
     def _read_live_state(self):
-        # reads from the json file rl_bridge.lua writes every 30 frames
+        # reads from the json file rl_bridge.lua writes every 10 frames
         # returns False if the file doesn't exist or we're not in a battle
         try:
             with open(BRIDGE_FILE, 'r') as f:
@@ -163,7 +164,7 @@ class PokemonBattleEnv(gym.Env):
             if not self._read_live_state():
                 print("waiting for battle in mgba...")
                 while not self._read_live_state():
-                    pass
+                    time.sleep(0.1)
                 print("battle found, starting episode")
         else:
             # randomized fallback for testing without mgba
@@ -196,7 +197,11 @@ class PokemonBattleEnv(gym.Env):
             prev_enemy_hp  = self.enemy_hp
             prev_player_hp = self.player_hp
 
-            self._read_live_state()
+            for i in range(100):
+                self._read_live_state()
+                if self.enemy_hp != prev_enemy_hp:
+                    break
+                time.sleep(0.1)
 
             damage_dealt = max(0, prev_enemy_hp - self.enemy_hp)
             damage_taken = max(0, prev_player_hp - self.player_hp)
