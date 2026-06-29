@@ -45,7 +45,7 @@ class PokemonBattleEnv(gym.Env):
         self.use_live_memory = use_live_memory
 
         # reward_version lets us swap between reward functions without rewriting the class
-        # v1 = original, v2 = speed bonus, v3 = type effectiveness
+        # v1 = original, v2 = speed bonus, v3 = type effectiveness, v4 = HP preservation + tuned speed, with a tunable risk weight
         self.reward_version = reward_version
 
         # 4 moves + switch + item
@@ -133,6 +133,17 @@ class PokemonBattleEnv(gym.Env):
                     reward += 0.5  # bonus for landing a super effective hit
                 elif effectiveness < 1:
                     reward -= 0.3  # penalty for using a not very effective move
+        elif self.reward_version == 4:
+            reward += (damage_dealt / max(self.enemy_max_hp, 1)) * 2
+            reward -= (damage_taken / max(self.player_max_hp, 1)) * 1.5
+            hp_weight = 5.86  # tunable risk knob: below this trends reckless, above it cautious
+            if self.enemy_hp <= 0:
+                reward += (self.max_turns - self.turn_count) / max(self.turn_count, 1)   # speed
+                reward += (self.player_hp / max(self.player_max_hp, 1)) * hp_weight  # HP retention
+            if action < 4:
+                eff = get_effectiveness(MOVE_DATA[action][1], self.enemy_type)
+                if eff > 1:   reward += 0.5
+                elif eff < 1: reward -= 0.3
 
         # win/loss bonus is the same across all versions
         if self.enemy_hp <= 0:

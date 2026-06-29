@@ -1,0 +1,19 @@
+# Giving Control to the Agent
+
+The purpose of the bridge is connection. The agent lives in the Python script. The values it needs live in mGBA's game memory. The bridge connects the two, so the agent can react to real in-game information and actively make moves in the game. Its first job is to read the values I want the agent to see out of the game's memory and write them to a JSON file, which the Python script reads and passes to the agent. Its second job is to read a file the Python script writes, containing what the agent wants to do, and translate that intention into actual button inputs in the game.
+
+Now the specifics. I found that some of the values the agent needs can't be read as 8-bit values, so I read them as 16-bit instead. The main case is the current Pokémon's HP and the opponent's HP, because both can exceed 255, the limit of an 8-bit value.
+
+Next, how the bridge detects whether the agent is in a battle. For this project, nothing outside of battle matters. I may incorporate out-of-battle mechanics in the future, but for now the battle state is all that counts. That's why, in the code, I ignore every other reading from the memory address that reports the game state. When that address yields 2, the game is in a battle, and every other value is irrelevant to me.
+
+The callback also runs every 10 frames, deliberately. If the interval were too long, Python would read a stale or unchanged JSON file. If it were too short, I'd risk reading the file mid-write and waste resources doing it. Ten frames is the middle ground that avoids both.
+
+To translate the agent's decision, I have to navigate the cursor to the move it picked. Rather than track the cursor's position every time it moves, I reset it to the first move, up and left, at the start of every action. That way the inputs needed to reach any given move are identical every time, and I never have to handle cursor tracking at all.
+
+The agent also can't access the bag or switch Pokémon, for now. This doesn't flatten the v4 reward system, because the agent can still play defensively through its moves. It can use a move like Hyper Beam, which deals high damage but immobilizes the user, when playing risky, or a move like Giga Drain, which heals at the cost of lower damage, when playing safe.
+
+I ordered the callback so the bridge reads and writes the observations before executing any action, so the recorded state matches what the agent actually decided from. As a rule, it's better to observe before acting in almost any scenario.
+
+I also spaced the inputs out to every third frame, so no input from the agent gets dropped. If I fired inputs every frame, I'd risk registering the wrong move, or no move when the agent expected one. That would teach the agent to distrust good moves. A strong move it chose would occasionally fail to register, the gap between expected and actual reward would be large, and the agent would lower the weight on good moves, degrading itself over time. A dropped input isn't a cosmetic problem. It corrupts the learning signal, because the agent can't tell a mechanical failure from a bad decision.
+
+Finally, I programmed the bridge to delete the action file after reading it, so it never re-reads the same input and repeats a move the agent didn't intend. The bridge, the reader, is the only thing that can delete the file, and that's by design. The sender can't know when the file will be read. Only the recipient can confirm it, so the recipient is responsible for deleting it.

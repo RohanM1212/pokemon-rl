@@ -12,7 +12,7 @@ print("Environment check passed.")
 # change reward_version here to test different reward functions
 # v1 = original, v2 = speed bonus, v3 = type effectiveness
 # document what happens with each version in devlog/
-REWARD_VERSION = 1
+REWARD_VERSION = 4
 
 env = PokemonBattleEnv(use_live_memory=True, reward_version=REWARD_VERSION)
 
