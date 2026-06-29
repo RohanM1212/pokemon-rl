@@ -1,7 +1,6 @@
 -- bridge.lua : connects mGBA's live battle memory to the Python RL env
 -- reads battle state -> writes JSON for Python; reads Python's action -> presses buttons
-
-local STATE_FILE  = "C:/Users/rmukh/Desktop/pokemon-accessibility-dev/battle_state.json"
+local STATE_FILE = "C:/Users/rmukh/Desktop/pokemon-accessibility-dev/battle_state.json"
 local ACTION_FILE = "C:/Users/rmukh/Desktop/pokemon-accessibility-dev/action.txt"
 
 -- read state from the memory
@@ -13,25 +12,25 @@ local function read_battle_state()
     else
         state.in_battle = 0
     end
-    state.player_hp     = emu:read16(0x020240AC)
+    state.player_hp = emu:read16(0x020240AC)
     state.player_hp_max = emu:read16(0x02024544)
-    state.player_level  = emu:read8(0x02024540)
-    state.enemy_hp      = emu:read16(0x0202479A)
-    state.enemy_hp_max  = emu:read16(0x0202479C)
-    state.enemy_level   = emu:read8(0x02024798)
+    state.player_level = emu:read8(0x02024540)
+    state.enemy_hp = emu:read16(0x0202479A)
+    state.enemy_hp_max = emu:read16(0x0202479C)
+    state.enemy_level = emu:read8(0x02024798)
     return state
 end
 
 -- write state to JSON file
 local function write_state(state)
     local json = "{"
-    json = json .. '"in_battle": '     .. tostring(state.in_battle)     .. ", "
-    json = json .. '"player_hp": '     .. tostring(state.player_hp)     .. ", "
+    json = json .. '"in_battle": ' .. tostring(state.in_battle) .. ", "
+    json = json .. '"player_hp": ' .. tostring(state.player_hp) .. ", "
     json = json .. '"player_hp_max": ' .. tostring(state.player_hp_max) .. ", "
-    json = json .. '"player_level": '  .. tostring(state.player_level)  .. ", "
-    json = json .. '"enemy_hp": '      .. tostring(state.enemy_hp)      .. ", "
-    json = json .. '"enemy_hp_max": '  .. tostring(state.enemy_hp_max)  .. ", "
-    json = json .. '"enemy_level": '   .. tostring(state.enemy_level)
+    json = json .. '"player_level": ' .. tostring(state.player_level) .. ", "
+    json = json .. '"enemy_hp": ' .. tostring(state.enemy_hp) .. ", "
+    json = json .. '"enemy_hp_max": ' .. tostring(state.enemy_hp_max) .. ", "
+    json = json .. '"enemy_level": ' .. tostring(state.enemy_level)
     json = json .. "}"
 
     local f = io.open(STATE_FILE, "w")
@@ -47,25 +46,25 @@ local function read_action()
     end
     local contents = f:read("a")
     f:close()
-    os.remove(ACTION_FILE)        -- consume it so we never re-read a stale action
+    os.remove(ACTION_FILE) -- consume it so we never re-read a stale action
     return tonumber(contents)
 end
 
 -- map the actions to the button list
 local function action_to_buttons(action)
     local buttons = {}
-    table.insert(buttons, "A")       -- confirm FIGHT
-    table.insert(buttons, "Up")      -- home the cursor to move 1
-    table.insert(buttons, "Left")
+    table.insert(buttons, C.GBA_KEY.A) -- confirm FIGHT
+    table.insert(buttons, C.GBA_KEY.UP) -- home cursor
+    table.insert(buttons, C.GBA_KEY.LEFT)
     if action == 1 then
-        table.insert(buttons, "Right")
+        table.insert(buttons, C.GBA_KEY.RIGHT)
     elseif action == 2 then
-        table.insert(buttons, "Down")
+        table.insert(buttons, C.GBA_KEY.DOWN)
     elseif action == 3 then
-        table.insert(buttons, "Right")
-        table.insert(buttons, "Down")
+        table.insert(buttons, C.GBA_KEY.RIGHT)
+        table.insert(buttons, C.GBA_KEY.DOWN)
     end
-    table.insert(buttons, "A")       -- confirm the move
+    table.insert(buttons, C.GBA_KEY.A) -- confirm move
     return buttons
 end
 
@@ -73,11 +72,13 @@ end
 local pending = {}
 local press_index = 0
 local frame = 0
+local press_timer = 0
+
 
 callbacks:add("frame", function()
     frame = frame + 1
 
-    -- read the state and write it every 10 frames
+    -- read the state and write it every 10 frames (observe)
     if frame % 10 == 0 then
         local state = read_battle_state()
         if state.in_battle == 1 then
@@ -85,20 +86,30 @@ callbacks:add("frame", function()
         end
     end
 
-    -- act and load action only after done reading and writing (observing)
+    -- load a new action only after the last sequence is done
     if press_index == 0 or press_index > #pending then
         local action = read_action()
         if action ~= nil then
             pending = action_to_buttons(action)
             press_index = 1
+            press_timer = 0
         end
     end
 
-    -- press one queued button, with spacing so inputs don't drop
+    -- press one queued button: hold it for a stretch, then a gap, then next
     if press_index > 0 and press_index <= #pending then
-        if frame % 3 == 0 then
-            emu:addKey(pending[press_index])
+        press_timer = press_timer + 1
+        if press_timer <= 8 then
+            -- select A uses 0 and so does input clear so they both clashed and A never actually
+            -- worked, so we had to make it non-zero by turning the key index into a bitmask with 2^key
+            emu:setKeys(2 ^ pending[press_index])   -- hold this button down
+        elseif press_timer <= 16 then
+            emu:setKeys(0)                          -- release, wait out the gap
+        else
+            console:log("done button " .. press_index .. " of " .. #pending)
             press_index = press_index + 1
+            press_timer = 0
         end
     end
 end)
+console:log("bridge loaded")
