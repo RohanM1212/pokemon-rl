@@ -10,11 +10,11 @@ check_env(check_env_instance)
 print("Environment check passed.")
 
 # change reward_version here to test different reward functions
-# v1 = original, v2 = speed bonus, v3 = type effectiveness
-# document what happens with each version in devlog/
+# v1 = original, v2 = speed bonus, v3 = type effectiveness, v4 = health preservation
+# document what happens with each version in devlog
 REWARD_VERSION = 4
 
-env = PokemonBattleEnv(use_live_memory=True, reward_version=REWARD_VERSION)
+env = PokemonBattleEnv(use_live_memory=False, reward_version=REWARD_VERSION)
 
 model = PPO(
     "MlpPolicy",
